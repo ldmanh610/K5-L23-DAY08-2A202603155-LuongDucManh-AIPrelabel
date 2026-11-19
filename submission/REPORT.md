@@ -67,3 +67,14 @@ Dữ liệu từ `submission/qc/review_stats.md` (24 ảnh, 506 box máy sau khi
 ### Bài nâng cao (Mục 7 `docs/ADVANCED.md`): Mở rộng cho GPU mạnh (`yolo26-l`, `--imgsz 1280`)
 - Chạy `yolo26-l` với `--imgsz 1280 --conf 0.25` trên 8 ảnh `pilot` (CUDA): phát hiện **237 box** (`person=138, motorbike=66, car=19, bicycle=11, truck=2, bus=1`) trong `0.47s/ảnh`.
 - So với `yolo26-m` mặc định (`215 box`: `person=131, motorbike=55, car=17, bicycle=8`), bản `yolo26-l @ 1280` tăng **+22 vật thể nhỏ/ở xa** (+11 `motorbike`, +7 `person`, +3 `bicycle`, +2 `car`), rất hiệu quả khi có GPU nhưng cần chú ý gom các vật `< 20 px` vào `ignore_region`.
+
+### Bổ sung theo tiêu chí Rubric (Kiểm chứng & Công cụ AI đã dùng)
+- **Vì sao loại 21 đối tượng quanh vùng bẫy khỏi AI error profile:** Các bẫy (`wrong_class`, `loose`, `extra`, `missing`) là lỗi nhân tạo được cấy vào để đo người duyệt, không phản ánh chất lượng thật của model. Nếu giữ lại sẽ làm sai lệch tỉ lệ `accepted / edited / deleted / added` của máy.
+- **Chỉ tiêu kiểm chứng cho 3 quy tắc giảm thiên kiến (vòng Rework):**
+  1. Ẩn nhãn máy trước khi duyệt → mục tiêu bắt bẫy `missing >= 2/3` và tổng bắt bẫy `>= 10/12 (83%)`.
+  2. Soi 4 cạnh các box lớn → mục tiêu bắt bẫy `loose >= 2/3`.
+  3. Quét riêng `three_wheeler` và gom vật `< 20 px` vào `ignore_region` → mục tiêu `0` cảnh báo `< 20 px` từ `validate_labels.py`.
+- **Giới hạn thống kê mẫu QC nhỏ:** Với `0/5` ảnh lỗi, cận trên 95% (Wilson) của tỉ lệ ảnh lỗi thật lên tới **43%**, nên không thể dùng mẫu 5 ảnh để chứng minh lô đạt ngưỡng lỗi `< 2%`.
+- **Công cụ AI đã dùng & cách kiểm tra:**
+  - Dùng Google Colab (GPU T4) chạy các model mã nguồn mở trong repo (`YOLO26-m/l`, `YOLOE-26s`, `SAM 2.1`, `Grounding DINO`, `OWLv2`) và dùng trợ lý AI hỗ trợ tổng hợp cấu trúc báo cáo/lệnh chạy.
+  - **Cách kiểm tra:** Mọi số liệu (`review_stats.md`, `threshold_sweep.md`, `qc_report_auto.md`, `work/runs.csv`) đều được đối chiếu trực tiếp với output thực tế của script và kiểm tra sạch lỗi bằng `python scripts/validate_labels.py --all` và `python scripts/check_submission.py` (`0 lỗi, 0 cảnh báo`).

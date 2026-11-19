@@ -17,3 +17,13 @@ Tài liệu này bổ sung các quy tắc xử lý ca khó phát sinh từ lỗi
 ## 4. Tách người ngồi trên xe và quy ước mask SAM (nguồn: `cau_hoi_mo`)
 - **Quy tắc:** Người lái hoặc hành khách nhìn rõ phần đầu/thân (`>= 20 px`) vẫn gán box `person` riêng biệt với box phương tiện. Khi tạo mask SAM cho phương tiện (`three_wheeler` / `motorbike`), dùng điểm âm (`--neg`) để loại bỏ nền hoặc phần không thuộc thân xe.
 - **Ảnh ví dụ:** `img_028.jpg`, `img_013.jpg`, `img_004.jpg`.
+
+## 5. Phân biệt "Guideline mơ hồ" và "Lỗi máy / Người duyệt sai"
+- **Guideline mơ hồ (`cau_hoi_mo`):** Cần cập nhật quy tắc rõ ràng trong v1.1 (ví dụ: ngưỡng `< 20 px` gom vào `ignore_region` ở `img_018.jpg`, `img_027.jpg`; tách người ngồi trên xe ở `img_028.jpg`).
+- **Lỗi máy / Người duyệt sai (`loi_may`):** Quy tắc v1.0 đã có nhưng model nhận nhầm (`three_wheeler` → `car`/`truck` ở `img_024.jpg`) hoặc người duyệt bị thiên kiến tự động hóa bỏ sót bẫy `loose`/`missing` (`img_013.jpg`, `img_004.jpg`). Xử lý bằng quy trình review 4 bước chứ không thay đổi định nghĩa nhãn gốc.
+
+## 6. Lịch sử thay đổi
+| Phiên bản | Ngày | Nội dung thay đổi |
+|---|---|---|
+| `v1.0` | Trước buổi học | Label contract ban đầu (7 lớp phương tiện/người + `ignore_region`) |
+| `v1.1` | 2026-11-19 | Bổ sung 4 quy tắc calibration (`C01–C04`) từ `calibration_decisions.csv` kèm ảnh ví dụ `img_0xx` |
