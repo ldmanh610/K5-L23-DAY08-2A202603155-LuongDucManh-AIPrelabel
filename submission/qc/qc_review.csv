@@ -1,0 +1,6 @@
+image,object_id,error_type,reviewer,note
+img_003.jpg,22,khong,Luong Duc Manh,Kiem tra 22 doi tuong; box three_wheeler va person dat yeu cau
+img_006.jpg,25,khong,Luong Duc Manh,Kiem tra 25 doi tuong; khong phat hien sai lop nghiem trong
+img_014.jpg,21,khong,Luong Duc Manh,Kiem tra 21 doi tuong; cac box motorbike va person on dinh
+img_031.jpg,3,khong,Luong Duc Manh,"Kiem tra 3 doi tuong; nhan sach, khong thua box"
+img_035.jpg,32,khong,Luong Duc Manh,Kiem tra 32 doi tuong; co mot so vat nho o xa da duoc ghi nhan

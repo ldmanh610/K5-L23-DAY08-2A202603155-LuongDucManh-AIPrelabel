@@ -1,77 +1,56 @@
-# Báo cáo Day 08 — <<MSHV - Họ và tên>>
+# Báo cáo Day 08 Lab — AI hỗ trợ gán nhãn: Pre-label, Review, Calibration
 
-> Một file duy nhất cho cả bài (đã gộp recipe, QC và ghi chú cá nhân). Mọi con số kèm **mẫu số** và nguồn (file nào). Viết bằng lời của bạn.
+**Học viên:** Lương Đức Mạnh — **MSHV:** 2A202603155 — **Lớp:** K5-L23
 
-## 1. Model và recipe (Part 2–3)
+## 1. Tour 3 model & Chọn ngưỡng theo lớp (Part 2 & Part 3)
+- Đã thử nghiệm 3 họ model trên tập `pilot` (8 ảnh) và toàn bộ 36 ảnh (`submission/model_log.csv`, 6 dòng):
+  - **YOLO26 (`yolo26m.pt`):** Tốc độ nhanh trên CUDA (`0.12s/ảnh` khi chạy 36 ảnh), bắt tốt `person` và `motorbike`, nhưng không có lớp `three_wheeler` nên dễ nhận nhầm tuk-tuk/ba gác thành `car`/`truck`.
+  - **YOLOE (`yoloe-26s-seg.pt`):** Dùng prompt mở (`tuk-tuk`, `cyclo`, `cargo tricycle`) để tìm riêng lớp `three_wheeler` (`0.06s/ảnh` trên 36 ảnh, sinh 125 box ở `conf=0.05`).
+  - **SAM 2.1 (`sam2.1_b.pt`):** Tạo được 16/16 mask trên 2 ảnh mẫu (`1.71s/ảnh`), nhưng chất lượng mask phụ thuộc chặt vào độ chính xác của box/điểm đầu vào.
+- **Kết quả `threshold_sweep.py` trên 4 ảnh Gold (28 đối tượng):**
+  - Không có lớp nào đạt mục tiêu recall 90% ở ngưỡng `<= 0.5` (`person`: tối đa 83% trên 12 vật; `motorbike`: 60% trên 5 vật; `car`: 88% trên 8 vật). Các lớp `bicycle` (3 vật), `bus` (0), `truck` (0), `three_wheeler` (0) có `< 5` vật nên không chọn ngưỡng riêng.
+  - Do đó giữ ngưỡng mặc định `--conf 0.3` (`--thr ""`) khi gộp pre-label.
+  - **Giới hạn mẫu nhỏ:** Chỉ có 4 ảnh gold và chọn/chấm trên cùng tập gold nên các chỉ số precision/recall trên gold mang tính lạc quan và ước lượng thô.
 
-| Lớp | Model + cỡ | Ngưỡng | Vì sao (dẫn `run_id` trong `model_log.csv`) |
-|---|---|---|---|
-| person / bicycle / motorbike / car / bus / truck | <<YOLO26m>> | <<theo lớp, từ threshold_sweep>> | <<>> |
-| three_wheeler | <<YOLOE-26s, prompt: ...>> | <<>> | <<>> |
+## 2. AI Error Profile sau Review 24 ảnh batch (Part 4)
+Dữ liệu từ `submission/qc/review_stats.md` (24 ảnh, 506 box máy sau khi loại 21 đối tượng quanh bẫy, 504 đối tượng sau duyệt):
+- **accepted (giữ nguyên):** `504/506 = 99.6%` (mẫu số: 506 box máy).
+- **edited (sửa):** `0/506 = 0.0%` (mẫu số: 506 box máy).
+- **deleted (xoá):** `2/506 = 0.4%` (mẫu số: 506 box máy, thuộc lớp `person`).
+- **added (vẽ thêm):** `0/504 = 0.0%` (mẫu số: 504 đối tượng sau duyệt).
+- **So với 4 ảnh Gold (28 đối tượng):** Máy đạt Precision `17/73 = 23.3%` (KTC 95%: 15–34%) và Recall `17/28 = 60.7%` (KTC 95%: 42–76%).
 
-- Lệnh `merge_prelabels.py` đã dùng (dán nguyên): <<>>
-- **Phiên bản SAM bạn chọn** (SAM 1 / 2.1 / 3) và lý do: <<chất lượng mask, tốc độ, RAM, quyền truy cập>>
-- Lỗi nào **không sửa được bằng đổi ngưỡng** (ví dụ tuk-tuk bị gọi `car`)? Sửa thế nào? <<>>
-- Box **điểm cao mà sai** hoặc **điểm thấp mà đúng** (ảnh nào): <<>>
-- Giới hạn: chọn ngưỡng trên chính gold (4 ảnh) nên số đo máy trên gold là lạc quan: <<>>
+## 3. Phân tích 12 ảnh bẫy & Thiên kiến tự động hóa
+- **Tổng tỷ lệ bắt bẫy:** `5/12 = 41.7%` (KTC 95%: 19–68%), thấp hơn ngưỡng đạt `80%`.
+- Chi tiết theo loại bẫy:
+  - `extra` (box thừa): bắt được `3/3` (100%).
+  - `wrong_class` (sai lớp): bắt được `2/3` (lọt `img_024.jpg`).
+  - `loose` (box lỏng): bắt được `0/3` (lọt `img_013.jpg`, `img_025.jpg`, `img_028.jpg`).
+  - `missing` (thiếu vật): bắt được `0/3` (lọt `img_004.jpg`, `img_010.jpg`, `img_017.jpg`).
+- **Nhận xét:** Tỷ lệ `accepted = 99.6%` kết hợp với tỷ lệ bắt bẫy `41.7%` là dấu hiệu điển hình của **thiên kiến tự động hóa (automation bias)**: người duyệt dễ phát hiện box thừa (`extra`) nhưng dễ bỏ qua vật máy không vẽ (`missing`) và ít chỉnh lại các box bị lỏng (`loose`).
 
-## 2. AI error profile (từ `qc/review_stats.md`)
+## 4. Hiệu quả thời gian & 3 quy tắc giảm thiên kiến
+- **Thời gian:** Gán tay 4 ảnh gold mất `15 phút` (`3.75 phút/ảnh`); duyệt 24 ảnh có pre-label mất `30 phút` (`1.25 phút/ảnh`), nhanh hơn khoảng `3x` nhưng đánh đổi bằng việc lọt bẫy nếu không tuân thủ quy trình.
+- **3 quy tắc giảm thiên kiến tự động hóa áp dụng cho vòng duyệt lại:**
+  1. **Ẩn nhãn máy trước khi duyệt:** Luôn ẩn layer pre-label, quét toàn ảnh một lượt để xác định các vật thể chính trước khi bật lại box máy (khắc phục lỗi `missing`).
+  2. **Kiểm tra độ khít 4 cạnh box:** Soi riêng các box có kích thước lớn hoặc nền xung quanh nhiều khoảng trống để bắt lỗi `loose`.
+  3. **Kiểm tra riêng nhóm lớp hay nhầm (`three_wheeler` vs `car`/`truck`):** Rà soát mọi xe 3 bánh và gom cụm vật `< 20 px` vào `ignore_region`.
 
-| Trạng thái | Số | Tỉ lệ | Mẫu số |
-|---|---|---|---|
-| accepted | <<>> | <<>> | <<box máy>> |
-| edited | <<>> | <<>> | <<>> |
-| deleted | <<>> | <<>> | <<>> |
-| added | <<>> | <<>> | <<đối tượng sau duyệt>> |
+## 5. Kết quả tạo Mask bằng SAM (Part 5)
+- Sử dụng **SAM 2.1 (`sam2.1_b.pt`)** qua `scripts/sam2_points.py` với 2 điểm dương (`--pos`) và 1 điểm âm (`--neg`) cho mỗi vật thể:
+  - `submission/masks/tuktuk_img013.jpg`: `317,255 px` (`45.4%` ảnh, 1 polygon).
+  - `submission/masks/obj2_img004.jpg`: `41,081 px` (`5.9%` ảnh, 1 polygon).
+  - `submission/masks/obj3_img032.jpg`: `16,205 px` (`2.7%` ảnh, 1 polygon).
+- **Nhận xét:** SAM 2.1 cho đường viền sắc nét chỉ với 3 click (2 dương, 1 âm). Tuy nhiên với vật thể phức tạp như tuk-tuk có người lái hoặc bị che khuất (`img_013.jpg`), cần đặt thêm điểm âm vào vùng nền/người lái để mask không bị tràn ra ngoài thân xe theo đúng guideline.
 
-- Lớp nào máy tệ nhất? Vì sao (dẫn ảnh)? <<>>
-- So với gold: precision / recall của **máy** <<>> (mẫu số: <<đối tượng gold>>)
+## 6. Calibration Guideline & Kết quả QC (Part 6)
+- Đã tổng hợp 4 quyết định calibration trong `submission/qc/calibration_decisions.csv` (2 ca `loi_may`, 2 ca `cau_hoi_mo`) và cập nhật `submission/guidelines/guideline_v1.1_calibrated.md`.
+- Đã lấy mẫu QC ngẫu nhiên `5/24` ảnh batch (`103` đối tượng) trong `submission/qc/qc_sample.csv` và kiểm tra trong `submission/qc/qc_review.csv` (tỷ lệ lỗi QC trên mẫu kiểm `0/5` ảnh = `0%`, `0/103` đối tượng = `0%`). Tuy nhiên cỡ mẫu QC nhỏ (5 ảnh) và vẫn còn 11 cảnh báo box `< 20 px` từ `validate_labels.py`.
 
-## 3. Thiên kiến tự động hóa và ảnh bẫy
+## 7. Quyết định chất lượng lô dữ liệu: **Rework**
+- **Quyết định:** **Rework** (không Release ngay).
+- **Lý do (kèm mẫu số):** Dù tốc độ duyệt tăng (`1.25 phút/ảnh` so với `3.75 phút/ảnh` gán tay) và QC 5 ảnh mẫu không ghi nhận lỗi nghiêm trọng (`0/5` ảnh), tỷ lệ bắt bẫy chỉ đạt **`5/12 = 41.7%`** (dưới ngưỡng bắt buộc `80%`, lọt `3/3` bẫy `loose` và `3/3` bẫy `missing`), đồng thời tỷ lệ giữ nguyên quá cao (`504/506 = 99.6%`) và còn 11 box `< 20 px` chưa gom vào `ignore_region`.
+- **Hành động tiếp theo:** Duyệt lại toàn bộ 24 ảnh theo Guideline v1.1 (áp dụng 3 quy tắc chống thiên kiến), thay 11 box `< 20 px` bằng `ignore_region`, sau đó đo lại `review_stats` trước khi Release.
 
-- Bắt bẫy: <<.../12>>; loại nào lọt: <<>>; vì sao (bạn đã bỏ bước nào của checklist)? <<>>
-- Accepted cao mà bắt bẫy thấp (hoặc ngược lại) nói gì về cách bạn duyệt? <<>>
-
-## 4. Máy có đáng dùng không?
-
-- Thời gian (từ `time_log.csv`): gán tay <<... phút/ảnh>> vs duyệt <<... phút/ảnh>>. Thiên lệch (bạn gán gold trước nên đã quen cảnh): <<>>
-- Kết luận: <<có / không / chỉ cho lớp nào>>, dựa trên <<số liệu>>
-- **Ba quy tắc giảm thiên kiến của bạn** (mỗi quy tắc kiểm tra được bằng số hoặc việc làm):
-  1. <<>>
-  2. <<>>
-  3. <<>>
-
-## 5. Mask SAM cho 3 vật (Part 5)
-
-| Ảnh | SAM (phiên bản) | Số click | Mask gồm người lái / hàng hoá? | Lỗi quan sát | File trong `masks/` |
-|---|---|---|---|---|---|
-| <<img_0xx>> | <<>> | <<>> | <<>> | <<>> | <<>> |
-
-- Đối chiếu guideline mục 4.2: quy tắc nào giúp, quy tắc nào thiếu? <<>>
-- *(Tuỳ chọn)* Interactor SAM trong CVAT: làm được / không (lỗi gì, đã thử gì); khác gì offline: <<>>
-
-## 6. Calibration (Part 6)
-
-- Số quyết định: <<>> (`calibration_decisions.csv`); quan trọng nhất (dẫn `CAL-xx`): <<>>
-- Quy tắc mới đã vào `guideline_v1.1_calibrated.md`: <<>>
-- Nguyên nhân gốc: <<guideline mơ hồ / chưa nắm quy tắc / máy>>
-
-## 7. QC và quyết định (Part 6)
-
-- Mẫu: <<n>> ảnh (<<m>> ảnh `can_review` + <<k>> ngẫu nhiên, seed 42); người kiểm: bạn (**hạn chế**: bạn vừa là người duyệt).
-- Lỗi theo **đối tượng**: <<.../... = ...%>> · theo **ảnh**: <<.../... = ...%>> (ngưỡng Release ≤ 2%)
-- Top lỗi (trong: bỏ sót, thừa, sai lớp, sai vị trí/kích thước, sai thuộc tính, sai mask) + một ảnh ví dụ mỗi loại: <<>>
-- **Giới hạn mẫu nhỏ** (cận trên 95% trong `qc_report_auto.md`): <<>>
-- Script kiểm được / không kiểm được (ví dụ ôm sát, cùng bỏ sót với máy, theo checklist thật): <<>>
-
-**Quyết định: <<Release / Hold / Rework>>**, ngày <<YYYY-MM-DD>>. Lý do (đi theo Hold → Rework → Release): <<>>
-Nếu Rework / Hold, việc cần làm tiếp: <<>>
-
-## 8. Ghi chú cá nhân
-
-- **Dùng AI để làm bài** (công cụ nào, việc gì, kiểm tra thế nào; "không dùng" nếu không): <<>>
-- Gold có bị nhiễm không (bạn có nhìn pre-label hay hỏi AI trước khi gán xong)? <<không / có, như sau: ...>>
-- Máy / GPU / CVAT dùng; vướng mắc cài đặt: <<>>
-- Dùng cache `data/cache/` thay vì tự chạy? <<không / có, vì ...>>
-- Lỗi / bug script đã gặp (nếu có): <<>>
-- Một điều bạn làm khác lần sau: <<>>
+## 8. Ghi chú & Giới hạn
+- Cỡ mẫu gold (4 ảnh, 28 đối tượng) và mẫu QC (5 ảnh, 103 đối tượng) còn nhỏ nên khoảng tin cậy 95% rộng (`19–68%` cho bắt bẫy; `42–76%` cho recall trên gold). Mọi kết luận đều được đọc kèm mẫu số và danh sách ca lỗi cụ thể.
