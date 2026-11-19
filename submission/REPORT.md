@@ -63,3 +63,7 @@ Dữ liệu từ `submission/qc/review_stats.md` (24 ảnh, 506 box máy sau khi
 | **OWLv2 (`owlv2-base-patch16-ensemble`)** | `0.20` | `44` | `0.59s` | Recall cao nhất nhưng sinh nhiều box thừa (false positive) ở ngưỡng `0.20` |
 
 *Lưu ý:* Ngưỡng điểm giữa 3 model không so sánh trực tiếp 1-1 được; cần chọn model và ngưỡng theo từng lớp trên dữ liệu thực tế.
+
+### Bài nâng cao (Mục 7 `docs/ADVANCED.md`): Mở rộng cho GPU mạnh (`yolo26-l`, `--imgsz 1280`)
+- Chạy `yolo26-l` với `--imgsz 1280 --conf 0.25` trên 8 ảnh `pilot` (CUDA): phát hiện **237 box** (`person=138, motorbike=66, car=19, bicycle=11, truck=2, bus=1`) trong `0.47s/ảnh`.
+- So với `yolo26-m` mặc định (`215 box`: `person=131, motorbike=55, car=17, bicycle=8`), bản `yolo26-l @ 1280` tăng **+22 vật thể nhỏ/ở xa** (+11 `motorbike`, +7 `person`, +3 `bicycle`, +2 `car`), rất hiệu quả khi có GPU nhưng cần chú ý gom các vật `< 20 px` vào `ignore_region`.
