@@ -54,3 +54,12 @@ Dữ liệu từ `submission/qc/review_stats.md` (24 ảnh, 506 box máy sau khi
 
 ## 8. Ghi chú & Giới hạn
 - Cỡ mẫu gold (4 ảnh, 28 đối tượng) và mẫu QC (5 ảnh, 103 đối tượng) còn nhỏ nên khoảng tin cậy 95% rộng (`19–68%` cho bắt bẫy; `42–76%` cho recall trên gold). Mọi kết luận đều được đọc kèm mẫu số và danh sách ca lỗi cụ thể.
+
+### Bài nâng cao (Mục 1 `docs/ADVANCED.md`): So sánh 3 model Open-Vocabulary cho lớp `three_wheeler` (8 ảnh `pilot`, CUDA)
+| Model | Ngưỡng (`--conf`) | Số box `three_wheeler` | Tốc độ (`sec/img`) | Nhận xét |
+|---|---:|---:|---:|---|
+| **YOLOE (`yoloe-26s-seg.pt`)** | `0.25` | `8` | `0.18s` | Nhanh nhất (~3–4×), ít box thừa nhất, phù hợp chạy pre-label hàng loạt |
+| **Grounding DINO (`grounding-dino-tiny`)** | `0.30` | `16` | `0.71s` | Tìm được nhiều xe ba bánh hơn YOLOE nhưng chậm hơn ~4× |
+| **OWLv2 (`owlv2-base-patch16-ensemble`)** | `0.20` | `44` | `0.59s` | Recall cao nhất nhưng sinh nhiều box thừa (false positive) ở ngưỡng `0.20` |
+
+*Lưu ý:* Ngưỡng điểm giữa 3 model không so sánh trực tiếp 1-1 được; cần chọn model và ngưỡng theo từng lớp trên dữ liệu thực tế.
